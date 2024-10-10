@@ -13,7 +13,6 @@ def input_keywords(scf_in):
   Return:
     dict: a dictionary of inputs
   """
-  keywords = dict()
   with open(scf_in, 'r') as f:
     text = f.read()
   return parse_keywords(text)
@@ -86,6 +85,37 @@ def parse_atomic_species(text):
     mass_dict[elem] = float(mass)
   return elem_pseudo, mass_dict
 
+def parse_aep(text):
+  """Parse cell axes, elements, positions (aep) from input text in bohr
+
+  Args:
+    text (str): input file content
+  Return:
+    tuple: (axes, elem, pos), axes contains the lattice vectors in row-major,
+      elem is an array of str, while pos is a (N, 3) array of floats.
+  """
+  bohr = 0.529177210544
+  unit, cell = parse_cell_parameters(text)
+  if 'ang' in unit.lower():
+      cell /= bohr
+  elif 'bohr' in unit.lower():
+      pass
+  else:
+      msg = 'unknown cell unit %s' % unit
+      raise RuntimeError(msg)
+  pos_unit, elem_pos = parse_atomic_positions(text)
+  elem = elem_pos['elements']
+  pos = elem_pos['positions']
+  if pos_unit == 'crystal':
+      pos = pos @ cell
+  elif 'ang' in pos_unit.lower():
+      pos /= pos
+  elif 'bohr' in pos_unit.lower():
+      msg = 'unknown pos unit %s' % unit
+      raise RuntimeError(msg)
+  aep = (cell, elem, pos)
+  return aep
+
 def parse_kpoints(text, ndim=3):
   lines = text.split('\n')
   for i, line in enumerate(lines):
@@ -136,7 +166,7 @@ def change_keyword(text, section, key, val, indent=' ', float_fmt='%.16f'):
     msg = 'section %s not found in %s' % (section, text)
     raise RuntimeError(msg)
   # determine keyword data type
-  if np.issubdtype(type(val), str):  # default to string
+  if np.issubdtype(type(val), np.str_):  # default to string
     fmt = '%s = "%s"'
   elif np.issubdtype(type(val), np.dtype(bool).type):
     fmt = '%s = %s'
@@ -155,6 +185,34 @@ def change_keyword(text, section, key, val, indent=' ', float_fmt='%.16f'):
   else:  # put new keyword at beginning of section
     text1 = ascii_out.change_line(text, sname, sname+'\n'+line)
   return text1
+
+def set_keywords(text, inps):
+  for key, val in inps.items():
+    section = get_section(key)
+    text = change_keyword(text, section, key, val)
+  return text
+
+def get_section(key):
+    section_map = {
+        'system': {
+            'nat',
+            'ecutwfc',
+            'amoire_in_ang',
+            'vmoire_in_mev',
+            'wmoire_in_mev',
+            'moire_dfield_in_mev',
+            'degauss',
+            'dgate',
+            'input_dft',
+        },
+        'electrons': {
+            'conv_thr',
+        },
+    }
+    for section, options in section_map.items():
+        if key in options:
+            return section
+    raise NotImplementedError('no section for %s' % key)
 
 def ktext_frac(kpts):
   """Write K_POINTS card assuming fractional kpoints with uniform weight.
@@ -518,8 +576,8 @@ def copy_charge_density(scf_dir, nscf_dir, execute=True):
       sp.check_call(['cp', fpsp, save_new])
   else:  # state what will be done
     path = os.path.dirname(fcharge)
-    msg = 'will copy %s and %s' % (
-      os.path.basename(fcharge), os.path.basename(fxml))
+    msg = 'will copy %s and %s in %s' % (
+      os.path.basename(fcharge), os.path.basename(fxml), path)
     if len(fpsps) > 0:
       for fpsp in fpsps:
         msg += ' and %s ' % fpsp
