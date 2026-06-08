@@ -233,7 +233,7 @@ def all_electron_hamiltonian(elec_name='e', ion_name='ion0'):
     xml.append(ham, [ei, ii])
   return ham
 
-def bspline_qmcsystem(fh5, tmat=None, run_dir=None):
+def bspline_qmcsystem(fh5, tmat=None, run_dir=None, twistnum='0'):
   """Create Slater-Jastrow system input from pw2qmcpack.x h5 file
 
   Args:
@@ -276,10 +276,26 @@ def bspline_qmcsystem(fh5, tmat=None, run_dir=None):
     tmat = np.eye(3, dtype=int)
   else:  # tile supercell
     from qharv.inspect.axes_elem_pos import ase_tile
+    lalias = 'H1' in elem  # magnetic ions
+    if lalias:  # map magnetic ions to difference elements
+      # !!!! HACK
+      elems = ['H', 'H1', 'H2']
+      alias = ['H', 'He', 'Li']
+      elem_alias = dict()
+      alias_elem = dict()
+      for e, name in zip(elems, alias):
+        elem_alias[e] = name
+        alias_elem[name] = e
+      elem = [elem_alias[e] for e in elem]
     axes, elem, pos = ase_tile(axes, elem, pos, tmat)
+    if lalias:  # map back to magnetic ions
+      elem = [alias_elem[e] for e in elem]
     elem = np.array(elem)
   ntile = int(round(abs(np.linalg.det(tmat))))
   nelecs *= ntile
+  nints = np.round(nelecs).astype(int)
+  assert np.allclose(nelecs, nints)
+  nelecs = nints
   if lpara and (nelecs[1] <= 0):
     nelecs[1] = nelecs[0]/2
     nelecs[0] /= 2
@@ -311,7 +327,7 @@ def bspline_qmcsystem(fh5, tmat=None, run_dir=None):
       'type': 'bspline',
       'href': fh5_loc,
       'tilematrix': tmat_str,
-      'twistnum': '0',
+      'twistnum': str(twistnum),
       'source': ion_name,  # "Einspline needs the source particleset"
   })
   sdet = xml.make_node('slaterdeterminant')

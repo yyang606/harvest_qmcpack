@@ -113,7 +113,11 @@ def axes_elem_charges_pos(fp):
     path = 'atoms/species_%d' % ielem
     elem_name = fp['%s/name' % path][()][0].decode()
     elem_map[ielem] = elem_name
-    vcharge = float(fp['%s/valence_charge' % path][()][0])
+    vpath = '%s/valence_charge' % path
+    if vpath in fp:
+      vcharge = float(fp[vpath][()][0])
+    else:
+      vcharge = 1  # !!!! HACK
     vchg_map[elem_name] = vcharge
   elem = [elem_map[ie] for ie in elem_id]
   assert len(elem) == len(pos)
@@ -277,7 +281,7 @@ def get_twists(fp, ndim=3):
   for ik in range(nk):
     kpath = kpoint_path(ik)
     ukvec = get_twist(fp, ik)
-    ukvecs[ik, :] = ukvec
+    ukvecs[ik, :] = ukvec[:ndim]
   return ukvecs
 
 def get_bands(fp, ispin=0):
@@ -381,6 +385,7 @@ def write_gvecs(fp, gvecs, kpath='/electrons/kpoint_0'):
   fp.require_group(kpath)
   kgrp = fp[kpath]
   kgrp.create_dataset('gvectors', data=gvecs)
+  kgrp['number_of_gvectors'] = len(gvecs)
 
 def write_kpoint(kgrp, utvec, evals, cmats):
   """ fill the electrons/kpoint_ group in wf h5 file

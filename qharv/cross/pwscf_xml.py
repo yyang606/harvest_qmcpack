@@ -77,6 +77,19 @@ def read_elem_pos(doc):
     pos.append(p)
   return np.array(elem), np.array(pos)
 
+def read_site_magnetization(doc):
+  node = doc.find('.//magnetization')
+  sites = node.find('.//Site_Magnetizations')
+  elem = []
+  mag = []
+  for site in sites:
+    e = site.get('atom')
+    elem.append(e)
+    p = text2arr(site.text)
+    mag.append(p)
+  return np.array(elem), np.array(mag)
+
+
 # ====================== level 1: basic outputs =====================
 def read_magnetization(doc):
   node = doc.find('.//magnetization')
@@ -160,7 +173,8 @@ def read_kpoints_and_weights(doc):
   for ks in ksl:
     kp = ks.find('.//k_point')
     kv = text2arr(kp.text)
-    kl.append(kv*blat)
+    #kl.append(kv*blat)
+    kl.append(kv)
     wt = float(kp.get('weight'))
     wl.append(wt)
   return np.array(kl), np.array(wl)

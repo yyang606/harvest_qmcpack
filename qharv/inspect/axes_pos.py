@@ -168,7 +168,9 @@ def madelung(axes, nr=3, rckc=30.0, dgate=None):
     raise RuntimeError(msg)
   # perform Ewald sums
   bmat = raxes(amat)
+  print('begin sr')
   vsr = sum_lattice(vsr_of_r, amat, rc)
+  print('begin lr')
   vlr = sum_lattice(vlr_of_k, bmat, kc)
   vol = volume(amat)
   vsr = (vsr-vlr_r0)/2

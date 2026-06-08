@@ -181,6 +181,30 @@ def read_rhor(fchg, mesh):
   rhor = fft.invfft(gvc[:, :ndim], evc).real
   return rhor
 
+def read_rhoDiff(fchg, mesh):
+  """ Read charge density difference between up and down spin electrons from charge-density.hdf5 file """
+  # read charge density in k-space
+  gvc, evc = read_save_hdf(fchg, name='rhodiff_g')
+  # compute charge density in real space
+  fft = FFTMesh(mesh)
+  ndim = len(mesh)
+  rhodiff_r = fft.invfft(gvc[:, :ndim], evc).real
+  return rhodiff_r
+
+def read_mxMyMz(fchg, mesh):
+  """ Read charge density difference between up and down spin electrons from charge-density.hdf5 file """
+  # read charge density in k-space
+  gvc, evc_x = read_save_hdf(fchg, name='m_x')
+  gvc, evc_y = read_save_hdf(fchg, name='m_y')
+  gvc, evc_z = read_save_hdf(fchg, name='m_z')
+  # compute charge density in real space
+  fft = FFTMesh(mesh)
+  ndim = len(mesh)
+  m_x_r = fft.invfft(gvc[:, :ndim], evc_x).real
+  m_y_r = fft.invfft(gvc[:, :ndim], evc_y).real
+  m_z_r = fft.invfft(gvc[:, :ndim], evc_z).real
+  return m_x_r, m_y_r, m_z_r
+
 def rho_of_r(mesh, gvl, evl, wtl, wt_tol=1e-8, npol=1):
   """ Calculdate charge density from orbitals (wfc*.hdf5) """
   rhor = np.zeros(mesh)
